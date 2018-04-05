@@ -4,7 +4,7 @@ function get_random_element (arr) {
 }
 
 // functions that handle movement
-function cohesion (self_boid, distance=50) {
+function cohesion (self_boid, distance=150) {
 	// move towards the position of surrounding boids that are withing n distance
 	let average_position = createVector(0, 0);
 	let return_position = createVector(0, 0);
@@ -46,7 +46,7 @@ function separation (self_boid) {
 	
 	return c;
 }
-function alignment (self_boid, distance=50) {
+function alignment (self_boid, distance=125) {
 	// align velocity with other boids that are withing n distance
 	let average_velocity = createVector(0, 0);
 	let return_velocity = createVector(0, 0);
@@ -102,18 +102,18 @@ function limit_vel (self_boid, limit) {
 }
 
 // the boid object
-function Boid (startx, starty) {
+function Boid (startx, starty, x_vel, y_vel) {
 	this.position = createVector(startx, starty);
-	this.velocity = createVector(0, 0);
+	this.velocity = createVector(x_vel, y_vel);
 
 	this.update_position = function () {
 		let v1 = cohesion(this);
 		let v2 = separation(this);
 		let v3 = alignment(this);
 		let v4 = bound_position(this);
-		let v5 = move_towards_goal(this);
+		//let v5 = move_towards_goal(this);
 
-		this.velocity.add(v1.add(v2).add(v3).add(v4).add(v5));
+		this.velocity.add(v1.add(v2).add(v3).add(v4));
 		limit_vel(this, 8);
 		this.position.add(this.velocity);
 	}
@@ -157,7 +157,7 @@ function add_lantern () {
 
 function add_moths (n) {
 	for (var i = 0; i < n; i++) {
-		let new_boid = new Boid(random(1260), random(640));
+		let new_boid = new Boid(random(1260), random(640), random(-1,1), random(-1,1));
 		all_boids.push(new_boid);
 	}
 }
