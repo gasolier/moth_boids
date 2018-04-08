@@ -67,19 +67,16 @@ function alignment (self_boid, distance=125) {
 	return return_velocity;
 }
 function bound_position (self_boid) {
-	// stop them flying off of the screen
+	// if the boids approach the edges of the screen push them towards their target a little
 	let return_vec = createVector(0, 0);
+	let target_vec = p5.Vector.sub(self_boid.target.position, self_boid.position);
 
-	if (self_boid.position.x < 10) {
-		return_vec.x = 10;
-	} else if (self_boid.position.x > 1250) {
-		return_vec.x = -10;
+	if (self_boid.position.x < 10 || self_boid.position.x > 1250) {
+		return_vec.x = target_vec.x;
 	}
 
-	if (self_boid.position.y < 10) {
-		return_vec.y = 10;
-	} else if (self_boid.position.y > 630) {
-		return_vec.y = -10;
+	if (self_boid.position.y < 10 || self_boid.position.y > 630) {
+		return_vec.y = target_vec.y;
 	}
 
 	return return_vec;
@@ -88,9 +85,17 @@ function move_towards_goal (self_boid) {
 	// move towards your lantern
 	let return_vec = createVector(0, 0);
 
-	return_vec = p5.Vector.sub(goal.position, self_boid.position).div(300);
+	return_vec = p5.Vector.sub(self_boid.target.position, self_boid.position).div(800);
 
 	return return_vec;
+}
+function keep_initial_heading (self_boid) {
+	// returns the angle we need to rotate by to keep our heading constant
+	let return_velocity = createVector(self_boid.velocity.x, self_boid.velocity.y);
+    let heading_relative_to_target = p5.Vector.angleBetween(self_boid.velocity, p5.Vector.sub(self_boid.target.position, self_boid.position));
+    let required_turn = heading_relative_to_target - self_boid.target_heading;
+	return_velocity.rotate(required_turn);
+    return return_velocity.div(5);
 }
 
 // apply this before adding velocity to position
@@ -105,27 +110,47 @@ function limit_vel (self_boid, limit) {
 function Boid (startx, starty, x_vel, y_vel) {
 	this.position = createVector(startx, starty);
 	this.velocity = createVector(x_vel, y_vel);
+	this.target = get_random_element(all_lanterns);
+
+    // the angle that we will attempt to keep throughout the entire flight
+	this.target_heading = random(-HALF_PI, HALF_PI);//p5.Vector.angleBetween(this.velocity, p5.Vector.sub(this.target.position, this.position));
+	this.velocity = keep_initial_heading(this);
 
 	this.update_position = function () {
 		let v1 = cohesion(this);
 		let v2 = separation(this);
 		let v3 = alignment(this);
 		let v4 = bound_position(this);
-		//let v5 = move_towards_goal(this);
+		let v5 = keep_initial_heading(this);
+		//let v6 = move_towards_goal(this);
+		
+		this.velocity.add(v1).add(v2).add(v3).add(v4).add(v5);
+		limit_vel(this, 10);
+		
+        this.position.add(this.velocity);
 
-		this.velocity.add(v1.add(v2).add(v3).add(v4));
-		limit_vel(this, 8);
-		this.position.add(this.velocity);
+        if (random(100) < 0.001) {
+        	console.log("Changed goal");
+        	let new_target = get_random_element(all_lanterns);
+
+        	while (new_target == this.target) {
+        		new_target = get_random_element(all_lanterns);
+        	}
+
+        	this.target_heading = random(-HALF_PI, HALF_PI);
+        	this.target = new_target;
+        }
 	}
 
 	this.draw_self = function () {
 		fill(255, 0, 0);
 		push();
 		translate(this.position.x, this.position.y);
-		//rotate(p5.Vector.sub(this.goal.position, this.position).heading() + HALF_PI);
 		rotate(this.velocity.heading() + HALF_PI);
 		animation(bird_anim, 0, 0, 2, 2);
 		pop();
+		stroke(255, 0, 0);
+		// line(this.position.x, this.position.y, this.target.position.x + 31, this.target.position.y + 40);
 	}
 }
 
@@ -149,15 +174,12 @@ function Lantern (x, y) {
 function add_lantern () {
 	console.log("Adding lantern...");
 	let new_lantern = new Lantern(mouseX - 16, mouseY - 16);
-	if (goal == "none") {
-		goal = new_lantern;
-	}
 	all_lanterns.push(new_lantern);
 }
 
 function add_moths (n) {
 	for (var i = 0; i < n; i++) {
-		let new_boid = new Boid(random(1260), random(640), random(-1,1), random(-1,1));
+		let new_boid = new Boid(random(1260), random(640), random(-7,7), random(-7,7));
 		all_boids.push(new_boid);
 	}
 }
@@ -222,21 +244,9 @@ function draw () {
 	Array.prototype.forEach.call(all_boids, function(boid) {
 		boid.draw_self();
 	});
-
-	if (all_lanterns.length >= 2) {
-		if (random(100) < 0.625) {
-			console.log("Changing goal");
-			let new_goal = get_random_element(all_lanterns);
-			while (new_goal == goal) {
-				new_goal = get_random_element(all_lanterns);
-			}
-			goal = new_goal;
-		}
-	}
 }
 
 // global variables that store important info
 let all_boids = new Array();
 let all_lanterns = new Array();
-let goal = "none";
 let display_on = false;
